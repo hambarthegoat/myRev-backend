@@ -5,10 +5,15 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Sales Management API"
     API_V1_STR: str = "/api/v1"
     
-    CONNECTION_STRING: str = Field(..., description="Database connection string")
+    # Berikan default string kosong agar aplikasi tidak crash saat build di Vercel
+    # (jika environment variable lupa diset).
+    CONNECTION_STRING: str = Field(default="", description="Database connection string")
 
     @property
     def async_database_url(self) -> str:
+        if not self.CONNECTION_STRING:
+            # Fallback ke in-memory sqlite jika tidak ada env vars 
+            return "sqlite+aiosqlite:///:memory:"
         if self.CONNECTION_STRING.startswith("postgresql://"):
             return self.CONNECTION_STRING.replace("postgresql://", "postgresql+asyncpg://", 1)
         return self.CONNECTION_STRING
