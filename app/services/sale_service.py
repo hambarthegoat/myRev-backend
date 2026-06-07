@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import extract
+from sqlalchemy import extract, func
 from app.models.sale import Sale
 from app.schemas.sale import SaleCreate, SaleUpdate
 
@@ -32,18 +32,42 @@ class SaleService:
         db: AsyncSession,
         bulan: Optional[int] = None,
         kategori: Optional[str] = None,
+        tanggal_dari: Optional[date] = None,
+        tanggal_sampai: Optional[date] = None,
+        nama_item: Optional[str] = None,
         limit: Optional[int] = None,
-    ) -> list[Sale]:
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+    ) -> tuple[list[Sale], int]:
         query = select(Sale)
         if bulan:
             query = query.where(Sale.bulan == bulan)
         if kategori:
             query = query.where(Sale.kategori == kategori)
+        if tanggal_dari:
+            query = query.where(Sale.tanggal >= tanggal_dari)
+        if tanggal_sampai:
+            query = query.where(Sale.tanggal <= tanggal_sampai)
+        if nama_item:
+            query = query.where(Sale.nama_item.ilike(f"%{nama_item}%"))
+
+        count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+        total = count_result.scalar_one()
+
         query = query.order_by(Sale.tanggal.desc(), Sale.id.desc())
-        if limit:
+        if page is not None:
+            page_size = page_size or 20
+            query = query.offset((page - 1) * page_size).limit(page_size)
+        elif limit:
             query = query.limit(limit)
+
         result = await db.execute(query)
-        return list(result.scalars().all())
+        return list(result.scalars().all()), total
+
+    @staticmethod
+    async def get_categories(db: AsyncSession) -> list[str]:
+        result = await db.execute(select(Sale.kategori).distinct().order_by(Sale.kategori))
+        return [row[0] for row in result.all()]
 
     @staticmethod
     async def get_sale(db: AsyncSession, sale_id: int) -> Sale:
@@ -132,8 +156,18 @@ class SaleService:
         fmt: str = "xlsx",
         bulan: Optional[int] = None,
         kategori: Optional[str] = None,
+        tanggal_dari: Optional[date] = None,
+        tanggal_sampai: Optional[date] = None,
+        nama_item: Optional[str] = None,
     ) -> bytes:
-        sales = await SaleService.get_sales(db, bulan=bulan, kategori=kategori)
+        sales, _ = await SaleService.get_sales(
+            db,
+            bulan=bulan,
+            kategori=kategori,
+            tanggal_dari=tanggal_dari,
+            tanggal_sampai=tanggal_sampai,
+            nama_item=nama_item,
+        )
 
         df = pd.DataFrame(
             [

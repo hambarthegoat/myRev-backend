@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -28,9 +29,20 @@ async def export_file(
     format: str = Query("xlsx", pattern="^(xlsx|csv)$"),
     bulan: Optional[int] = Query(None),
     kategori: Optional[str] = Query(None),
+    tanggal_dari: Optional[date] = Query(None),
+    tanggal_sampai: Optional[date] = Query(None),
+    nama_item: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    content = await SaleService.export_sales(db, fmt=format, bulan=bulan, kategori=kategori)
+    content = await SaleService.export_sales(
+        db,
+        fmt=format,
+        bulan=bulan,
+        kategori=kategori,
+        tanggal_dari=tanggal_dari,
+        tanggal_sampai=tanggal_sampai,
+        nama_item=nama_item,
+    )
     filename = f"sales_export.{format}"
     return StreamingResponse(
         iter([content]),
