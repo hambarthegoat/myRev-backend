@@ -1,21 +1,21 @@
-import uuid
-from datetime import datetime, timezone, date
-from sqlalchemy import Column, Integer, Numeric, DateTime, ForeignKey, Date, Uuid
-from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, DateTime, Date
 from app.models.base import Base
 
+
 def get_utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 class Sale(Base):
     __tablename__ = "sales"
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    item_id = Column(Uuid(as_uuid=True), ForeignKey("items.id"), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tanggal = Column(Date, nullable=False)
+    bulan = Column(Integer, nullable=False)
+    nama_item = Column(String(255), nullable=False)
+    kategori = Column(String(50), nullable=False)
     quantity = Column(Integer, nullable=False)
-    unit_price = Column(Numeric(12, 2), nullable=False)
-    total_price = Column(Numeric(12, 2), nullable=False)
-    sale_date = Column(Date, nullable=False, default=date.today)
+    harga_satuan = Column(Integer, nullable=False)
+    total_harga = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=get_utc_now)
-
-    item = relationship("Item")
